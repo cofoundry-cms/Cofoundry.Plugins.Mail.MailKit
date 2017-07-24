@@ -151,7 +151,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
             {
                 if (string.IsNullOrEmpty(_mailSettings.DebugEmailAddress))
                 {
-                    throw new Exception("MailSendMode.SendToDebugAddress requested but Cofoundry:SmtpMail:DebugEmailAddress setting is not defined.");
+                    throw new Exception("MailSendMode.SendToDebugAddress requested but Cofoundry:Mail:DebugEmailAddress setting is not defined.");
                 }
                 toAddress = CreateMailAddress(_mailSettings.DebugEmailAddress, message.To.DisplayName);
             }
