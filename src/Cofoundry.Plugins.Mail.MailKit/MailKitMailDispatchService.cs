@@ -38,19 +38,6 @@ namespace Cofoundry.Plugins.Mail.MailKit
         /// Sends a mail message.
         /// </summary>
         /// <param name="message">The MailMessage to send</param>
-        public void Dispatch(MailMessage message)
-        {
-            using (var session = CreateSession())
-            {
-                session.Add(message);
-                session.Flush();
-            }
-        }
-
-        /// <summary>
-        /// Sends a mail message.
-        /// </summary>
-        /// <param name="message">The MailMessage to send</param>
         public async Task DispatchAsync(MailMessage message)
         {
             using (var session = CreateSession())

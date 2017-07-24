@@ -44,35 +44,6 @@ namespace Cofoundry.Plugins.Mail.MailKit
             _mailQueue.Enqueue(messageToSend);
         }
 
-        public void Flush()
-        {
-            ValidateNotDisposed();
-
-            if (_mailSettings.SendMode == MailSendMode.LocalDrop)
-            {
-                FlushToLocalDrop();
-                return;
-            }
-
-            try
-            {
-                _smtpClientConnectionConfiguration.Connect(_mailClient.Value);
-
-                while (_mailQueue.Count > 0)
-                {
-                    var mailItem = _mailQueue.Dequeue();
-                    if (mailItem != null && _mailSettings.SendMode != MailSendMode.DoNotSend)
-                    {
-                        _mailClient.Value.Send(mailItem);
-                    }
-                }
-            }
-            finally
-            {
-                _smtpClientConnectionConfiguration.Disconnect(_mailClient.Value);
-            }
-        }
-
         public async Task FlushAsync()
         {
             ValidateNotDisposed();
