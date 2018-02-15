@@ -36,6 +36,8 @@ namespace Cofoundry.Plugins.Mail.MailKit
             // Note: all samples disable the OAuth2/XOAUTH2 authentication mechanism. Will leave it out until we have a use case
             if (smtpClient.AuthenticationMechanisms.Contains(OAUTH2_MECHANISM))
             {
+                // since 2.0 this looks like it has been removed anyway
+                // https://github.com/jstedfast/MailKit/blob/master/ReleaseNotes.md#mailkit-200
                 smtpClient.AuthenticationMechanisms.Remove(OAUTH2_MECHANISM);
             }
 
