@@ -16,7 +16,7 @@
   </PropertyGroup>
   
   <ItemGroup>
-    <PackageReference Include="Cofoundry.Core" Version="0.4.1" />
+    <PackageReference Include="Cofoundry.Core" Version="0.5.0" />
     <PackageReference Include="MailKit" Version="2.0.6" />
   </ItemGroup>
 
