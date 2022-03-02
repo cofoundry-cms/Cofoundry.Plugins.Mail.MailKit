@@ -17,7 +17,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
             var overrideOptions = RegistrationOptions.Override();
 
             container
-                .Register<IMailDispatchService, MailKitMailDispatchService>(overrideOptions)
+                .Register<IMailDispatchSession, MailKitMailDispatchSession>(overrideOptions)
                 .Register<ISmtpClientConnectionConfiguration, SmtpClientConnectionConfiguration>()
                 ; 
         }

@@ -102,3 +102,6 @@ src/.vs
 # Cake Build
 /tools
 /artifacts
+
+appsettings.local.json
+APP_Data/

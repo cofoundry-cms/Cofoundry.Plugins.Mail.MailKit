@@ -6,8 +6,6 @@ using MimeKit.Text;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace Cofoundry.Plugins.Mail.MailKit
@@ -16,7 +14,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
     /// Mail dispatch session that uses System.Net.Mail to
     /// dispatch email.
     /// </summary>
-    public class MilKitMailDispatchSession : IMailDispatchSession
+    public class MailKitMailDispatchSession : IMailDispatchSession
     {
         private readonly Queue<MimeMessage> _mailQueue = new Queue<MimeMessage>();
         private readonly Lazy<SmtpClient> _mailClient;
@@ -26,7 +24,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
 
         private bool isDisposing = false;
 
-        public MilKitMailDispatchSession(
+        public MailKitMailDispatchSession(
             MailSettings mailSettings,
             IPathResolver pathResolver,
             ISmtpClientConnectionConfiguration smtpClientConnectionConfiguration
@@ -82,8 +80,6 @@ namespace Cofoundry.Plugins.Mail.MailKit
             }
         }
 
-        #region private methods
-
         private void ValidateNotDisposed()
         {
             if (isDisposing)
@@ -121,7 +117,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
             if (isDisposing) return null;
             return new SmtpClient();
         }
-        
+
         private MimeMessage FormatMessage(MailMessage message)
         {
             if (message == null) throw new ArgumentNullException(nameof(message));
@@ -196,7 +192,7 @@ namespace Cofoundry.Plugins.Mail.MailKit
             {
                 if (string.IsNullOrEmpty(displayName))
                 {
-                    mailAddress = new MailboxAddress(email);
+                    mailAddress = new MailboxAddress(null, email);
                 }
                 else
                 {
@@ -226,7 +222,5 @@ namespace Cofoundry.Plugins.Mail.MailKit
 
             return mailDropDirectory;
         }
-
-        #endregion
     }
 }
