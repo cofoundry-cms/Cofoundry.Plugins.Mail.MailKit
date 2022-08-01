@@ -1,25 +1,19 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Cofoundry.Core.DependencyInjection;
+﻿using Cofoundry.Core.DependencyInjection;
 using Cofoundry.Core.Mail;
 
-namespace Cofoundry.Plugins.Mail.MailKit
+namespace Cofoundry.Plugins.Mail.MailKit;
+
+public class MailKitDependencyRegistration : IDependencyRegistration
 {
-    public class MailKitDependencyRegistration : IDependencyRegistration
+    public void Register(IContainerRegister container)
     {
-        public void Register(IContainerRegister container)
-        {
-            if (container.Configuration.GetValue<bool>("Cofoundry:Plugins:MailKit:Disabled")) return;
+        if (container.Configuration.GetValue<bool>("Cofoundry:Plugins:MailKit:Disabled")) return;
 
-            var overrideOptions = RegistrationOptions.Override();
+        var overrideOptions = RegistrationOptions.Override();
 
-            container
-                .Register<IMailDispatchSession, MailKitMailDispatchSession>(overrideOptions)
-                .Register<ISmtpClientConnectionConfiguration, SmtpClientConnectionConfiguration>()
-                ; 
-        }
+        container
+            .Register<IMailDispatchSession, MailKitMailDispatchSession>(overrideOptions)
+            .Register<ISmtpClientConnectionConfiguration, SmtpClientConnectionConfiguration>()
+            ;
     }
 }

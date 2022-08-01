@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.32126.315
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cofoundry.Plugins.Mail.MailKit", "Cofoundry.Plugins.Mail.MailKit\Cofoundry.Plugins.Mail.MailKit.csproj", "{8D628D8E-3AD8-4259-B08A-C7CC0FCC609D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Cofoundry.Plugins.Mail.MailKit", "src\Cofoundry.Plugins.Mail.MailKit\Cofoundry.Plugins.Mail.MailKit.csproj", "{8D628D8E-3AD8-4259-B08A-C7CC0FCC609D}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Samples", "Samples", "{DBD04643-D345-4DF5-AD0A-9A179649A4CA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MailKitExample", "MailKitExample\MailKitExample.csproj", "{B78AFB4C-1ECF-4E72-AE5E-BC6638CE12C2}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MailKitExample", "src\MailKitExample\MailKitExample.csproj", "{B78AFB4C-1ECF-4E72-AE5E-BC6638CE12C2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

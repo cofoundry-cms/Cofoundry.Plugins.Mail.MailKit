@@ -1,31 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿namespace Cofoundry.Plugins.Mail.MailKit;
 
-namespace Cofoundry.Plugins.Mail.MailKit
+/// <summary>
+/// Used to indicate the rules to use for smtp server ssl certificate validation.
+/// </summary>
+public enum CertificateValidationMode
 {
     /// <summary>
-    /// Used to indicate the rules to use for smtp server ssl certificate validation.
+    /// Uses the default MailKit validator, which allows valid certificates
+    /// and self-signed certificates with an untrusted root.
     /// </summary>
-    public enum CertificateValidationMode
-    {
-        /// <summary>
-        /// Uses the default MailKit validator, which allows valid certificates
-        /// and self-signed certificates with an untrusted root.
-        /// </summary>
-        /// <remarks>
-        /// See https://github.com/jstedfast/MailKit/issues/307
-        /// </remarks>
-        Default,
+    /// <remarks>
+    /// See https://github.com/jstedfast/MailKit/issues/307
+    /// </remarks>
+    Default,
 
-        /// <summary>
-        /// Ignore certificate errors.
-        /// </summary>
-        All,
+    /// <summary>
+    /// Ignore certificate errors.
+    /// </summary>
+    All,
 
-        /// <summary>
-        /// Allows only valid certificates without errors.
-        /// </summary>
-        ValidOnly
-    }
+    /// <summary>
+    /// Allows only valid certificates without errors.
+    /// </summary>
+    ValidOnly
 }

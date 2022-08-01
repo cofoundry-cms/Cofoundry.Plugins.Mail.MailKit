@@ -3,224 +3,219 @@ using Cofoundry.Core.Mail;
 using MailKit.Net.Smtp;
 using MimeKit;
 using MimeKit.Text;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 
-namespace Cofoundry.Plugins.Mail.MailKit
+namespace Cofoundry.Plugins.Mail.MailKit;
+
+/// <summary>
+/// Mail dispatch session that uses System.Net.Mail to
+/// dispatch email.
+/// </summary>
+public class MailKitMailDispatchSession : IMailDispatchSession
 {
-    /// <summary>
-    /// Mail dispatch session that uses System.Net.Mail to
-    /// dispatch email.
-    /// </summary>
-    public class MailKitMailDispatchSession : IMailDispatchSession
+    private readonly Queue<MimeMessage> _mailQueue = new Queue<MimeMessage>();
+    private readonly Lazy<SmtpClient> _mailClient;
+    private readonly MailSettings _mailSettings;
+    private readonly IPathResolver _pathResolver;
+    private readonly ISmtpClientConnectionConfiguration _smtpClientConnectionConfiguration;
+
+    private bool isDisposing = false;
+
+    public MailKitMailDispatchSession(
+        MailSettings mailSettings,
+        IPathResolver pathResolver,
+        ISmtpClientConnectionConfiguration smtpClientConnectionConfiguration
+        )
     {
-        private readonly Queue<MimeMessage> _mailQueue = new Queue<MimeMessage>();
-        private readonly Lazy<SmtpClient> _mailClient;
-        private readonly MailSettings _mailSettings;
-        private readonly IPathResolver _pathResolver;
-        private readonly ISmtpClientConnectionConfiguration _smtpClientConnectionConfiguration;
+        _mailSettings = mailSettings;
+        _pathResolver = pathResolver;
+        _mailClient = new Lazy<SmtpClient>(CreateSmtpMailClient);
+        _smtpClientConnectionConfiguration = smtpClientConnectionConfiguration;
+    }
 
-        private bool isDisposing = false;
+    public void Add(MailMessage mailMessage)
+    {
+        var messageToSend = FormatMessage(mailMessage);
+        _mailQueue.Enqueue(messageToSend);
+    }
 
-        public MailKitMailDispatchSession(
-            MailSettings mailSettings,
-            IPathResolver pathResolver,
-            ISmtpClientConnectionConfiguration smtpClientConnectionConfiguration
-            )
+    public async Task FlushAsync()
+    {
+        ValidateNotDisposed();
+
+        if (_mailSettings.SendMode == MailSendMode.LocalDrop)
         {
-            _mailSettings = mailSettings;
-            _pathResolver = pathResolver;
-            _mailClient = new Lazy<SmtpClient>(CreateSmtpMailClient);
-            _smtpClientConnectionConfiguration = smtpClientConnectionConfiguration;
+            FlushToLocalDrop();
+            return;
         }
 
-        public void Add(MailMessage mailMessage)
+        try
         {
-            var messageToSend = FormatMessage(mailMessage);
-            _mailQueue.Enqueue(messageToSend);
-        }
-
-        public async Task FlushAsync()
-        {
-            ValidateNotDisposed();
-
-            if (_mailSettings.SendMode == MailSendMode.LocalDrop)
-            {
-                FlushToLocalDrop();
-                return;
-            }
-
-            try
-            {
-                await _smtpClientConnectionConfiguration.ConnectAsync(_mailClient.Value);
-
-                while (_mailQueue.Count > 0)
-                {
-                    var mailItem = _mailQueue.Dequeue();
-                    if (mailItem != null && _mailSettings.SendMode != MailSendMode.DoNotSend)
-                    {
-                        await _mailClient.Value.SendAsync(mailItem);
-                    }
-                }
-            }
-            finally
-            {
-                await _smtpClientConnectionConfiguration.DisconnectAsync(_mailClient.Value);
-            }
-        }
-
-        public void Dispose()
-        {
-            isDisposing = true;
-            if (_mailClient.IsValueCreated)
-            {
-                _mailClient.Value?.Dispose();
-            }
-        }
-
-        private void ValidateNotDisposed()
-        {
-            if (isDisposing)
-            {
-                throw new InvalidOperationException("Cannot perform the operation because the object has been disposed");
-            }
-        }
-
-        /// <summary>
-        /// see https://stackoverflow.com/a/39933156/716689
-        /// </summary>
-        private void FlushToLocalDrop()
-        {
-            var pickupDirectory = GetMailDropPath();
+            await _smtpClientConnectionConfiguration.ConnectAsync(_mailClient.Value);
 
             while (_mailQueue.Count > 0)
             {
                 var mailItem = _mailQueue.Dequeue();
-                if (mailItem != null)
+                if (mailItem != null && _mailSettings.SendMode != MailSendMode.DoNotSend)
                 {
-                    var path = Path.Combine(pickupDirectory, Guid.NewGuid().ToString() + ".eml");
-
-                    using (var stream = new FileStream(path, FileMode.CreateNew))
-                    {
-                        mailItem.WriteTo(stream);
-                        return;
-                    }
+                    await _mailClient.Value.SendAsync(mailItem);
                 }
             }
         }
-
-
-        private SmtpClient CreateSmtpMailClient()
+        finally
         {
-            if (isDisposing) return null;
-            return new SmtpClient();
+            await _smtpClientConnectionConfiguration.DisconnectAsync(_mailClient.Value);
+        }
+    }
+
+    public void Dispose()
+    {
+        isDisposing = true;
+        if (_mailClient.IsValueCreated)
+        {
+            _mailClient.Value?.Dispose();
+        }
+    }
+
+    private void ValidateNotDisposed()
+    {
+        if (isDisposing)
+        {
+            throw new InvalidOperationException("Cannot perform the operation because the object has been disposed");
+        }
+    }
+
+    /// <summary>
+    /// see https://stackoverflow.com/a/39933156/716689
+    /// </summary>
+    private void FlushToLocalDrop()
+    {
+        var pickupDirectory = GetMailDropPath();
+
+        while (_mailQueue.Count > 0)
+        {
+            var mailItem = _mailQueue.Dequeue();
+            if (mailItem != null)
+            {
+                var path = Path.Combine(pickupDirectory, Guid.NewGuid().ToString() + ".eml");
+
+                using (var stream = new FileStream(path, FileMode.CreateNew))
+                {
+                    mailItem.WriteTo(stream);
+                    return;
+                }
+            }
+        }
+    }
+
+
+    private SmtpClient CreateSmtpMailClient()
+    {
+        if (isDisposing) return null;
+        return new SmtpClient();
+    }
+
+    private MimeMessage FormatMessage(MailMessage message)
+    {
+        if (message == null) throw new ArgumentNullException(nameof(message));
+
+        var messageToSend = new MimeMessage();
+
+        var toAddress = GetMailToAddress(message);
+        messageToSend.To.Add(toAddress);
+        messageToSend.Subject = message.Subject;
+        if (message.From != null)
+        {
+            messageToSend.From.Add(CreateMailAddress(message.From.Address, message.From.DisplayName));
+        }
+        else
+        {
+            messageToSend.From.Add(CreateMailAddress(_mailSettings.DefaultFromAddress, _mailSettings.DefaultFromAddressDisplayName));
+        }
+        SetMessageBody(messageToSend, message.HtmlBody, message.TextBody);
+
+        return messageToSend;
+    }
+
+    private MailboxAddress GetMailToAddress(MailMessage message)
+    {
+        MailboxAddress toAddress;
+        if (_mailSettings.SendMode == MailSendMode.SendToDebugAddress)
+        {
+            if (string.IsNullOrEmpty(_mailSettings.DebugEmailAddress))
+            {
+                throw new Exception("MailSendMode.SendToDebugAddress requested but Cofoundry:Mail:DebugEmailAddress setting is not defined.");
+            }
+            toAddress = CreateMailAddress(_mailSettings.DebugEmailAddress, message.To.DisplayName);
+        }
+        else
+        {
+            toAddress = new MailboxAddress(message.To.DisplayName, message.To.Address);
+        }
+        return toAddress;
+    }
+
+    private void SetMessageBody(MimeMessage message, string bodyHtml, string bodyText)
+    {
+        var hasHtmlBody = !string.IsNullOrWhiteSpace(bodyHtml);
+        var hasTextBody = !string.IsNullOrWhiteSpace(bodyText);
+        if (!hasHtmlBody && !hasTextBody)
+        {
+            throw new ArgumentException("An email must have either a html or text body");
         }
 
-        private MimeMessage FormatMessage(MailMessage message)
+        if (hasHtmlBody && !hasTextBody)
         {
-            if (message == null) throw new ArgumentNullException(nameof(message));
+            message.Body = new TextPart(TextFormat.Html) { Text = bodyHtml };
+        }
+        else if (hasTextBody && !hasHtmlBody)
+        {
+            message.Body = new TextPart(TextFormat.Plain) { Text = bodyText };
+        }
+        else
+        {
+            var alternative = new Multipart("alternative");
+            alternative.Add(new TextPart(TextFormat.Plain) { Text = bodyText });
+            alternative.Add(new TextPart(TextFormat.Html) { Text = bodyHtml });
 
-            var messageToSend = new MimeMessage();
+            message.Body = alternative;
+        }
+    }
 
-            var toAddress = GetMailToAddress(message);
-            messageToSend.To.Add(toAddress);
-            messageToSend.Subject = message.Subject;
-            if (message.From != null)
+    private MailboxAddress CreateMailAddress(string email, string displayName)
+    {
+        MailboxAddress mailAddress = null;
+        try
+        {
+            if (string.IsNullOrEmpty(displayName))
             {
-                messageToSend.From.Add(CreateMailAddress(message.From.Address, message.From.DisplayName));
+                mailAddress = new MailboxAddress(null, email);
             }
             else
             {
-                messageToSend.From.Add(CreateMailAddress(_mailSettings.DefaultFromAddress, _mailSettings.DefaultFromAddressDisplayName));
+                mailAddress = new MailboxAddress(displayName, email);
             }
-            SetMessageBody(messageToSend, message.HtmlBody, message.TextBody);
-
-            return messageToSend;
         }
-
-        private MailboxAddress GetMailToAddress(MailMessage message)
+        catch (ParseException ex)
         {
-            MailboxAddress toAddress;
-            if (_mailSettings.SendMode == MailSendMode.SendToDebugAddress)
-            {
-                if (string.IsNullOrEmpty(_mailSettings.DebugEmailAddress))
-                {
-                    throw new Exception("MailSendMode.SendToDebugAddress requested but Cofoundry:Mail:DebugEmailAddress setting is not defined.");
-                }
-                toAddress = CreateMailAddress(_mailSettings.DebugEmailAddress, message.To.DisplayName);
-            }
-            else
-            {
-                toAddress = new MailboxAddress(message.To.DisplayName, message.To.Address);
-            }
-            return toAddress;
+            throw new InvalidMailAddressException(email, displayName, ex);
         }
 
-        private void SetMessageBody(MimeMessage message, string bodyHtml, string bodyText)
+        return mailAddress;
+    }
+
+    private string GetMailDropPath()
+    {
+        if (string.IsNullOrEmpty(_mailSettings.MailDropDirectory))
         {
-            var hasHtmlBody = !string.IsNullOrWhiteSpace(bodyHtml);
-            var hasTextBody = !string.IsNullOrWhiteSpace(bodyText);
-            if (!hasHtmlBody && !hasTextBody)
-            {
-                throw new ArgumentException("An email must have either a html or text body");
-            }
-
-            if (hasHtmlBody && !hasTextBody)
-            {
-                message.Body = new TextPart(TextFormat.Html) { Text = bodyHtml };
-            }
-            else if (hasTextBody && !hasHtmlBody)
-            {
-                message.Body = new TextPart(TextFormat.Plain) { Text = bodyText };
-            }
-            else
-            {
-                var alternative = new Multipart("alternative");
-                alternative.Add(new TextPart(TextFormat.Plain) { Text = bodyText });
-                alternative.Add(new TextPart(TextFormat.Html) { Text = bodyHtml });
-
-                message.Body = alternative;
-            }
+            throw new Exception("Cofoundry:Mail:MailDropDirectory configuration has been requested and is not set.");
         }
 
-        private MailboxAddress CreateMailAddress(string email, string displayName)
+        var mailDropDirectory = _pathResolver.MapPath(_mailSettings.MailDropDirectory);
+        if (!Directory.Exists(mailDropDirectory))
         {
-            MailboxAddress mailAddress = null;
-            try
-            {
-                if (string.IsNullOrEmpty(displayName))
-                {
-                    mailAddress = new MailboxAddress(null, email);
-                }
-                else
-                {
-                    mailAddress = new MailboxAddress(displayName, email);
-                }
-            }
-            catch (ParseException ex)
-            {
-                throw new InvalidMailAddressException(email, displayName, ex);
-            }
-
-            return mailAddress;
+            Directory.CreateDirectory(mailDropDirectory);
         }
 
-        private string GetMailDropPath()
-        {
-            if (string.IsNullOrEmpty(_mailSettings.MailDropDirectory))
-            {
-                throw new Exception("Cofoundry:Mail:MailDropDirectory configuration has been requested and is not set.");
-            }
-
-            var mailDropDirectory = _pathResolver.MapPath(_mailSettings.MailDropDirectory);
-            if (!Directory.Exists(mailDropDirectory))
-            {
-                Directory.CreateDirectory(mailDropDirectory);
-            }
-
-            return mailDropDirectory;
-        }
+        return mailDropDirectory;
     }
 }

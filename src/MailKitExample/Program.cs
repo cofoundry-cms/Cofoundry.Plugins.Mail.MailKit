@@ -1,23 +1,15 @@
 using Cofoundry.Web;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Hosting;
 
-namespace MailKitExample
-{
-    public class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseLocalConfigFile();
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder
-                        .UseStartup<Startup>()
-                        .UseLocalConfigFile();
-                });
-    }
-}
+builder.Services
+    .AddRazorPages()
+    .AddCofoundry(builder.Configuration);
+
+var app = builder.Build();
+
+app.UseHttpsRedirection();
+app.UseCofoundry();
+
+app.Run();
