@@ -1,4 +1,4 @@
-﻿using Cofoundry.Core;
+using Cofoundry.Core;
 using Cofoundry.Core.Mail;
 using MailKit.Net.Smtp;
 using MimeKit;
@@ -7,18 +7,17 @@ using MimeKit.Text;
 namespace Cofoundry.Plugins.Mail.MailKit;
 
 /// <summary>
-/// Mail dispatch session that uses System.Net.Mail to
-/// dispatch email.
+/// MailKit implementation of <see cref="IMailDispatchSession"/>.
 /// </summary>
-public class MailKitMailDispatchSession : IMailDispatchSession
+public sealed class MailKitMailDispatchSession : IMailDispatchSession
 {
-    private readonly Queue<MimeMessage> _mailQueue = new Queue<MimeMessage>();
-    private readonly Lazy<SmtpClient> _mailClient;
+    private readonly Queue<MimeMessage> _mailQueue = new();
+    private readonly Lazy<SmtpClient?> _mailClient;
     private readonly MailSettings _mailSettings;
     private readonly IPathResolver _pathResolver;
     private readonly ISmtpClientConnectionConfiguration _smtpClientConnectionConfiguration;
 
-    private bool isDisposing = false;
+    private bool _isDisposing;
 
     public MailKitMailDispatchSession(
         MailSettings mailSettings,
@@ -28,16 +27,18 @@ public class MailKitMailDispatchSession : IMailDispatchSession
     {
         _mailSettings = mailSettings;
         _pathResolver = pathResolver;
-        _mailClient = new Lazy<SmtpClient>(CreateSmtpMailClient);
+        _mailClient = new Lazy<SmtpClient?>(CreateSmtpMailClient);
         _smtpClientConnectionConfiguration = smtpClientConnectionConfiguration;
     }
 
+    /// <inheritdoc/>
     public void Add(MailMessage mailMessage)
     {
         var messageToSend = FormatMessage(mailMessage);
         _mailQueue.Enqueue(messageToSend);
     }
 
+    /// <inheritdoc/>
     public async Task FlushAsync()
     {
         ValidateNotDisposed();
@@ -48,28 +49,35 @@ public class MailKitMailDispatchSession : IMailDispatchSession
             return;
         }
 
+        var client = _mailClient.Value;
+
+        if (client == null)
+        {
+            throw new InvalidOperationException($"SmtpClient should not be null, has {nameof(FlushAsync)} been called while disposing? {nameof(_isDisposing)}: {_isDisposing}");
+        }
+
         try
         {
-            await _smtpClientConnectionConfiguration.ConnectAsync(_mailClient.Value);
+            await _smtpClientConnectionConfiguration.ConnectAsync(client);
 
             while (_mailQueue.Count > 0)
             {
                 var mailItem = _mailQueue.Dequeue();
                 if (mailItem != null && _mailSettings.SendMode != MailSendMode.DoNotSend)
                 {
-                    await _mailClient.Value.SendAsync(mailItem);
+                    await client.SendAsync(mailItem);
                 }
             }
         }
         finally
         {
-            await _smtpClientConnectionConfiguration.DisconnectAsync(_mailClient.Value);
+            await _smtpClientConnectionConfiguration.DisconnectAsync(client);
         }
     }
 
     public void Dispose()
     {
-        isDisposing = true;
+        _isDisposing = true;
         if (_mailClient.IsValueCreated)
         {
             _mailClient.Value?.Dispose();
@@ -78,7 +86,7 @@ public class MailKitMailDispatchSession : IMailDispatchSession
 
     private void ValidateNotDisposed()
     {
-        if (isDisposing)
+        if (_isDisposing)
         {
             throw new InvalidOperationException("Cannot perform the operation because the object has been disposed");
         }
@@ -107,16 +115,19 @@ public class MailKitMailDispatchSession : IMailDispatchSession
         }
     }
 
-
-    private SmtpClient CreateSmtpMailClient()
+    private SmtpClient? CreateSmtpMailClient()
     {
-        if (isDisposing) return null;
+        if (_isDisposing)
+        {
+            return null;
+        }
+
         return new SmtpClient();
     }
 
     private MimeMessage FormatMessage(MailMessage message)
     {
-        if (message == null) throw new ArgumentNullException(nameof(message));
+        ArgumentNullException.ThrowIfNull(message);
 
         var messageToSend = new MimeMessage();
 
@@ -143,7 +154,7 @@ public class MailKitMailDispatchSession : IMailDispatchSession
         {
             if (string.IsNullOrEmpty(_mailSettings.DebugEmailAddress))
             {
-                throw new Exception("MailSendMode.SendToDebugAddress requested but Cofoundry:Mail:DebugEmailAddress setting is not defined.");
+                throw new Exception($"{nameof(MailSendMode)}.{nameof(MailSendMode.SendToDebugAddress)} requested but Cofoundry:Mail:DebugEmailAddress setting is not defined.");
             }
             toAddress = CreateMailAddress(_mailSettings.DebugEmailAddress, message.To.DisplayName);
         }
@@ -154,7 +165,7 @@ public class MailKitMailDispatchSession : IMailDispatchSession
         return toAddress;
     }
 
-    private void SetMessageBody(MimeMessage message, string bodyHtml, string bodyText)
+    private static void SetMessageBody(MimeMessage message, string? bodyHtml, string? bodyText)
     {
         var hasHtmlBody = !string.IsNullOrWhiteSpace(bodyHtml);
         var hasTextBody = !string.IsNullOrWhiteSpace(bodyText);
@@ -173,17 +184,19 @@ public class MailKitMailDispatchSession : IMailDispatchSession
         }
         else
         {
-            var alternative = new Multipart("alternative");
-            alternative.Add(new TextPart(TextFormat.Plain) { Text = bodyText });
-            alternative.Add(new TextPart(TextFormat.Html) { Text = bodyHtml });
+            var alternative = new Multipart("alternative")
+            {
+                new TextPart(TextFormat.Plain) { Text = bodyText },
+                new TextPart(TextFormat.Html) { Text = bodyHtml }
+            };
 
             message.Body = alternative;
         }
     }
 
-    private MailboxAddress CreateMailAddress(string email, string displayName)
+    private static MailboxAddress CreateMailAddress(string email, string? displayName)
     {
-        MailboxAddress mailAddress = null;
+        MailboxAddress? mailAddress;
         try
         {
             if (string.IsNullOrEmpty(displayName))

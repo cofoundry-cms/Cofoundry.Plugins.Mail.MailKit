@@ -1,12 +1,12 @@
-﻿using Cofoundry.Core.Configuration;
-using MailKit.Net.Smtp;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
+using Cofoundry.Core.Configuration;
+using MailKit.Net.Smtp;
 
 namespace Cofoundry.Plugins.Mail.MailKit;
 
 /// <summary>
-/// Used to configure the MailKit SmtpClient and customize the connection process.
+/// Default implementation of <see cref="SmtpClientConnectionConfiguration"/>.
 /// </summary>
 public class SmtpClientConnectionConfiguration : ISmtpClientConnectionConfiguration
 {
@@ -19,23 +19,10 @@ public class SmtpClientConnectionConfiguration : ISmtpClientConnectionConfigurat
         _mailKitSettings = mailKitSettings;
     }
 
-    /// <summary>
-    /// Initializes the SmtpClient after it has been created.
-    /// </summary>
-    /// <param name="smtpClient">Instance to initialize.</param>
+    /// <inheritdoc/>
     public virtual void Initialize(SmtpClient smtpClient)
     {
-        const string OAUTH2_MECHANISM = "XOAUTH2";
-
-        if (smtpClient == null) throw new ArgumentNullException(nameof(smtpClient));
-
-        // Note: all samples disable the OAuth2/XOAUTH2 authentication mechanism. Will leave it out until we have a use case
-        if (smtpClient.AuthenticationMechanisms.Contains(OAUTH2_MECHANISM))
-        {
-            // since 2.0 this looks like it has been removed anyway
-            // https://github.com/jstedfast/MailKit/blob/master/ReleaseNotes.md#mailkit-200
-            smtpClient.AuthenticationMechanisms.Remove(OAUTH2_MECHANISM);
-        }
+        ArgumentNullException.ThrowIfNull(smtpClient);
 
         switch (_mailKitSettings.CertificateValidationMode)
         {
@@ -52,15 +39,15 @@ public class SmtpClientConnectionConfiguration : ISmtpClientConnectionConfigurat
         }
     }
 
-    /// <summary>
-    /// Opens the SmtpClient connection to the configured host.
-    /// </summary>
-    /// <param name="smtpClient">Instance to connect with.</param>
+    /// <inheritdoc/>
     public virtual void Connect(SmtpClient smtpClient)
     {
-        if (smtpClient == null) throw new ArgumentNullException(nameof(smtpClient));
+        ArgumentNullException.ThrowIfNull(smtpClient);
 
-        if (smtpClient.IsConnected) return;
+        if (smtpClient.IsConnected)
+        {
+            return;
+        }
 
         smtpClient.Connect(_mailKitSettings.Host, _mailKitSettings.Port, _mailKitSettings.EnableSsl);
 
@@ -70,15 +57,15 @@ public class SmtpClientConnectionConfiguration : ISmtpClientConnectionConfigurat
         }
     }
 
-    /// <summary>
-    /// Opens the SmtpClient connection to the configured host.
-    /// </summary>
-    /// <param name="smtpClient">Instance to connect with.</param>
+    /// <inheritdoc/>
     public virtual async Task ConnectAsync(SmtpClient smtpClient)
     {
-        if (smtpClient == null) throw new ArgumentNullException(nameof(smtpClient));
+        ArgumentNullException.ThrowIfNull(smtpClient);
 
-        if (smtpClient.IsConnected) return;
+        if (smtpClient.IsConnected)
+        {
+            return;
+        }
 
         await smtpClient.ConnectAsync(_mailKitSettings.Host, _mailKitSettings.Port, _mailKitSettings.EnableSsl);
 
@@ -88,31 +75,24 @@ public class SmtpClientConnectionConfiguration : ISmtpClientConnectionConfigurat
         }
     }
 
-    /// <summary>
-    /// Closes the SmtpClient connection to the configured host.
-    /// </summary>
-    /// <param name="smtpClient">Instance to close the connection for.</param>
+    /// <inheritdoc/>
     public virtual void Disconnect(SmtpClient smtpClient)
     {
-        if (smtpClient == null) throw new ArgumentNullException(nameof(smtpClient));
+        ArgumentNullException.ThrowIfNull(smtpClient);
 
         smtpClient.Disconnect(true);
     }
 
-    /// <summary>
-    /// Closes the SmtpClient connection to the configured host.
-    /// </summary>
-    /// <param name="smtpClient">Instance to close the connection for.</param>
+    /// <inheritdoc/>
     public virtual Task DisconnectAsync(SmtpClient smtpClient)
     {
-        if (smtpClient == null) throw new ArgumentNullException(nameof(smtpClient));
+        ArgumentNullException.ThrowIfNull(smtpClient);
 
         return smtpClient.DisconnectAsync(true);
     }
 
-    private bool ValidateValidCertificatesOnly(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+    private static bool ValidateValidCertificatesOnly(object sender, X509Certificate? certificate, X509Chain? chain, SslPolicyErrors sslPolicyErrors)
     {
         return sslPolicyErrors == SslPolicyErrors.None;
     }
-
 }

@@ -2,7 +2,6 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/2lfyem84399nrwfi?svg=true)](https://ci.appveyor.com/project/Cofoundry/cofoundry-plugins-mail-mailkit)
 [![NuGet](https://img.shields.io/nuget/v/Cofoundry.Plugins.Mail.MailKit.svg)](https://www.nuget.org/packages/Cofoundry.Plugins.Mail.MailKit/)
-[![Gitter](https://img.shields.io/gitter/room/cofoundry-cms/cofoundry.svg)](https://gitter.im/cofoundry-cms/cofoundry)
 
 
 This library is a plugin for [Cofoundry](https://www.cofoundry.org). For more information on getting started with Cofoundry check out the [Cofoundry repository](https://github.com/cofoundry-cms/cofoundry).
@@ -22,4 +21,4 @@ This library allows you to send mail using the cross platform [MailKit](https://
 
 ## Custom Connection Configuration
 
-For more control over how MailKit initializes and connects to the smtp host you can implement your own `ISmtpClientConnectionConfiguration` and override the default implementation using the [Cofoundry DI system](https://github.com/cofoundry-cms/cofoundry/wiki/Dependency-Injection#overriding-registrations).
+For more control over how MailKit initializes and connects to the SMTP host you can implement your own `ISmtpClientConnectionConfiguration` and override the default implementation using the [Cofoundry DI system](https://www.cofoundry.org/docs/framework/dependency-injection).

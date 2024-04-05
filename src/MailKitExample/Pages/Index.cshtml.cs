@@ -36,7 +36,10 @@ namespace MailKitExample.Pages
 
         public async Task OnPost()
         {
-            if (!ModelState.IsValid) return;
+            if (!ModelState.IsValid)
+            {
+                return;
+            }
 
             var template = new ExampleMailTemplate()
             {
